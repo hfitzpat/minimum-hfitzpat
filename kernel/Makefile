@@ -6,7 +6,12 @@ BUILD := build
 KERNEL := $(BUILD)/minimum-kernel.elf
 RUNTIME := $(BUILD)/libminemu_kernel.a
 
-CORE_OBJECT := $(BUILD)/core/main.o
+# Student kernel objects. These are linked directly (not through the runtime
+# archive) so that strong definitions override the runtime's weak IRQ hooks.
+CORE_OBJECT := \
+	$(BUILD)/core/main.o \
+	$(BUILD)/drivers/uart.o \
+	$(BUILD)/lib/kprintf.o
 RUNTIME_OBJECTS := \
 	$(BUILD)/runtime/block.o \
 	$(BUILD)/runtime/exception.o \
@@ -62,6 +67,14 @@ $(KERNEL): $(CORE_OBJECT) $(RUNTIME) linker/kernel.ld
 	$(CC) $(LDFLAGS) $(CORE_OBJECT) $(RUNTIME) $(LIBGCC) -o $@
 
 $(BUILD)/core/%.o: src/core/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/drivers/%.o: src/drivers/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/lib/%.o: src/lib/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
