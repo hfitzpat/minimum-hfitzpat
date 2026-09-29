@@ -6,3 +6,6 @@
 **/*.elf
 **/*.map
 **/*.img
+
+# AI chat logs are submitted on Gradescope, not tracked in git
+chatlogs-hw1/

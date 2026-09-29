@@ -1,0 +1,13 @@
+image = "../../image/build/minimum.img"
+boot_rom = "../../bootloader/bootloader.bin"
+max_ticks = 900000
+
+[[inputs]]
+at_tick = 300000
+uart = 0
+data = "echo 1234567890123456\necho done\n"
+
+[assert]
+uart0_contains = "msh> msh> done\nmsh> "
+execution_lifecycle = "paused"
+shutdown_lifecycle = "stopped"

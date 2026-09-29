@@ -1,0 +1,33 @@
+image = "../../image/build/minimum.img"
+boot_rom = "../../bootloader/bootloader.bin"
+max_ticks = 1500000
+
+[[inputs]]
+at_tick = 300000
+uart = 0
+data = "echo 12345"
+
+[[inputs]]
+at_tick = 400000
+uart = 0
+data = "67890123456789"
+
+[[inputs]]
+at_tick = 500000
+uart = 0
+data = "0123456789\n"
+
+[[inputs]]
+at_tick = 600000
+uart = 0
+data = "echo 1234567890"
+
+[[inputs]]
+at_tick = 700000
+uart = 0
+data = " abcd\n"
+
+[assert]
+uart0_contains = "msh> msh> 1234567890 abcd\nmsh> "
+execution_lifecycle = "paused"
+shutdown_lifecycle = "stopped"

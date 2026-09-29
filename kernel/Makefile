@@ -10,6 +10,9 @@ RUNTIME := $(BUILD)/libminemu_kernel.a
 # archive) so that strong definitions override the runtime's weak IRQ hooks.
 CORE_OBJECT := \
 	$(BUILD)/core/main.o \
+	$(BUILD)/core/irq.o \
+	$(BUILD)/core/irq_entry.o \
+	$(BUILD)/shell/msh.o \
 	$(BUILD)/drivers/uart.o \
 	$(BUILD)/lib/kprintf.o
 RUNTIME_OBJECTS := \
@@ -74,9 +77,17 @@ $(BUILD)/drivers/%.o: src/drivers/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD)/shell/%.o: src/shell/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD)/lib/%.o: src/lib/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/core/%.o: src/core/%.S
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(ASFLAGS) -c $< -o $@
 
 $(BUILD)/runtime/%.o: src/runtime/%.c
 	@mkdir -p $(dir $@)
