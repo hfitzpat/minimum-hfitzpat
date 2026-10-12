@@ -107,17 +107,35 @@ char uart_getc(void) {
     return (char)c;
 }
 
-void uart_irq_handler(void) {
-    /*
-     * Drain the hardware FIFO into the ring buffer. The RX interrupt stays
-     * asserted as long as unread bytes remain AND the RX interrupt is enabled,
-     * so before EOI we must either empty the FIFO or turn the interrupt off.
-     *
-     * Flow control: if the ring buffer fills up, we stop reading and disable
-     * the device's RX interrupt instead of throwing bytes away. The remaining
-     * bytes wait safely in the device's own 4 KiB FIFO, and rx_pop_locked()
-     * re-enables the interrupt as soon as the main program frees a slot.
-     */
+/* Mask IRQs and return the previous CPSR so irq_restore() can put the I bit
+ * back exactly as it was. */
+static uint32_t irq_save(void) {
+    uint32_t cpsr;
+    __asm__ volatile("mrs %0, cpsr" : "=r"(cpsr) : : "memory");
+    minemu_irq_disable();
+    return cpsr;
+}
+
+static void irq_restore(uint32_t cpsr) {
+    if ((cpsr & UINT32_C(0x80)) == 0) { /* I bit was clear: IRQs were on */
+        minemu_irq_enable();
+    }
+}
+
+/*
+ * Drain the hardware FIFO into the ring buffer. Must be called with IRQs
+ * masked (the IRQ handler and the syscall path both satisfy this).
+ *
+ * The RX interrupt stays asserted as long as unread bytes remain AND the RX
+ * interrupt is enabled, so before EOI the IRQ handler must either empty the
+ * FIFO or turn the interrupt off.
+ *
+ * Flow control: if the ring buffer fills up, we stop reading and disable the
+ * device's RX interrupt instead of throwing bytes away. The remaining bytes
+ * wait safely in the device's own 4 KiB FIFO, and rx_pop_locked() re-enables
+ * the interrupt as soon as the reader frees a slot.
+ */
+static void rx_drain_fifo_locked(void) {
     while (MINEMU_UART0->status & MINEMU_UART_STATUS_RX_READY) {
         if (rx_head - rx_tail >= UART_RX_BUFFER_SIZE) {
             rx_paused = 1;
@@ -128,4 +146,42 @@ void uart_irq_handler(void) {
             (uint8_t)MINEMU_UART0->rx_data;
         rx_head = rx_head + 1u;
     }
+}
+
+void uart_irq_handler(void) {
+    rx_drain_fifo_locked();
+}
+
+/*
+ * Why the syscall path also drains the FIFO: minemu only checks for pending
+ * interrupts between its execution chunks, and every SVC ends a chunk with
+ * the CPU in SVC mode (IRQs masked). A user program that polls UART_READ in
+ * a tight loop therefore never gets the RX interrupt delivered, so reads
+ * collect bytes from the hardware themselves. Bytes already in the ring
+ * buffer are older than bytes still in the FIFO, so the ring is read first.
+ */
+size_t uart_read_available(char *dst, size_t max_length) {
+    uint32_t saved = irq_save();
+    size_t count = 0;
+    while (count < max_length) {
+        int c = rx_pop_locked();
+        if (c < 0) {
+            rx_drain_fifo_locked();
+            c = rx_pop_locked();
+            if (c < 0) {
+                break; /* nothing received yet */
+            }
+        }
+        dst[count++] = (char)c;
+    }
+    irq_restore(saved);
+    return count;
+}
+
+int uart_rx_pending(void) {
+    uint32_t saved = irq_save();
+    rx_drain_fifo_locked();
+    int pending = rx_head != rx_tail;
+    irq_restore(saved);
+    return pending;
 }

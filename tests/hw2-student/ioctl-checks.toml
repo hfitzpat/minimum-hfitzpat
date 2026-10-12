@@ -1,0 +1,33 @@
+# Student test: ioctl error handling, pointer validation, UART1 and the
+# handout (base address, op) encoding. See fixtures/ioctl-checks/main.c for
+# what each trace value means. 0xffffffff is -1 (MINEMU_IOCTL_ERROR).
+image = "fixtures/ioctl-checks/build/hw2-ioctl-checks.img"
+boot_rom = "../../bootloader/bootloader.bin"
+max_ticks = 2000000
+
+[[inputs]]
+at_tick = 100000
+uart = 1
+data = "ping"
+
+[assert]
+uart0_contains = "h0\n"
+uart1_contains = "u1 ok\ngot:ping"
+execution_lifecycle = "paused"
+shutdown_lifecycle = "stopped"
+mmu_enabled = true
+cpu_mode = "user"
+trace_values = [
+  0xffffffff, 0xffffffff, 0xffffffff,                                     # 1-3 bad fd/op
+  0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, # 4-9 bad buffers
+  0xffffffff, 0, 0x4d454d55,                                              # 10-11 RNG not advanced
+  0, 256, 2,                                                              # 12-14
+  0xffffffff,                                                             # 15 unknown syscall
+  0, 0, 0x87985aa5,                                                       # 16-17 handout RNG
+  0,                                                                      # 18 unaligned ok
+  0xcafef00d, 0,                                                          # 19 handout TRACE
+  6, 4,                                                                   # 20-21 UART1
+  3, 0,                                                                   # 22-23 handout UART0
+  0xffffffff,                                                             # 24 bad op
+  0x600dd0e5,                                                             # end marker
+]

@@ -1,10 +1,14 @@
 #include "kernel/kprintf.h"
-#include "kernel/msh.h"
+#include "kernel/loader.h"
 #include "kernel/uart.h"
 #include "minemu/boot.h"
 #include "minemu/irq.h"
 #include "minemu/trap.h"
 #include "minemu/trace.h"
+
+/* Name of the module (from image/minimum.toml) that runs as the first and
+ * only user program: the msh shell. */
+static const char user_program_name[] = "minimum-user";
 
 void minemu_kernel_main(const struct minemu_boot_info *boot_info) {
     if ((uintptr_t)boot_info != MINEMU_BOOT_INFO_VADDR ||
@@ -19,12 +23,17 @@ void minemu_kernel_main(const struct minemu_boot_info *boot_info) {
         minemu_fail_stop();
     }
 
+    /* UART0 driver + RX interrupt. IRQs stay masked on the CPU until we drop
+     * into user mode, whose CPSR has the I bit clear (see user_entry.S). */
     uart_init();
-    kprintf("hello world\n");
-    minemu_trace_event(1);
 
-    /* All handlers are in place (see core/irq.c); unmask IRQs on the CPU. */
-    minemu_irq_enable();
+    uint32_t entry_vaddr = 0;
+    if (!loader_map_system_rom(boot_info) ||
+        !loader_load_module(boot_info, user_program_name, &entry_vaddr)) {
+        kprintf("kernel: could not load user program '%s'\n", user_program_name);
+        minemu_trace_event(UINT32_C(0xb007bad1));
+        minemu_fail_stop();
+    }
 
-    msh_run();
+    minemu_enter_user(entry_vaddr, USER_STACK_TOP);
 }

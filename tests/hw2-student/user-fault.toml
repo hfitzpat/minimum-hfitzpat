@@ -1,0 +1,12 @@
+# Student test: a user program writing an MMIO register directly must fault;
+# the kernel prints a data-abort report and stops (no "!" or "after").
+image = "fixtures/user-fault/build/hw2-user-fault.img"
+boot_rom = "../../bootloader/bootloader.bin"
+max_ticks = 1000000
+
+[assert]
+uart0_contains = "before\n\nkernel: data abort at pc=0x"
+execution_lifecycle = "paused"
+shutdown_lifecycle = "stopped"
+mmu_enabled = true
+trace_values = []

@@ -12,7 +12,10 @@ CORE_OBJECT := \
 	$(BUILD)/core/main.o \
 	$(BUILD)/core/irq.o \
 	$(BUILD)/core/irq_entry.o \
-	$(BUILD)/shell/msh.o \
+	$(BUILD)/core/loader.o \
+	$(BUILD)/core/syscall.o \
+	$(BUILD)/core/svc_entry.o \
+	$(BUILD)/core/user_entry.o \
 	$(BUILD)/drivers/uart.o \
 	$(BUILD)/lib/kprintf.o
 RUNTIME_OBJECTS := \
@@ -74,10 +77,6 @@ $(BUILD)/core/%.o: src/core/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/drivers/%.o: src/drivers/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
-
-$(BUILD)/shell/%.o: src/shell/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 

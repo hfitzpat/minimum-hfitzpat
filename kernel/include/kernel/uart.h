@@ -38,6 +38,16 @@ int uart_try_getc(void);
  * can run) until a byte is available, then returns it. */
 char uart_getc(void);
 
+/* Non-blocking bulk read for the ioctl syscall: moves up to max_length bytes
+ * that have already been received into dst and returns how many were moved
+ * (0 if none are waiting). Safe to call with IRQs masked (as in a syscall);
+ * it restores the caller's IRQ mask state instead of unconditionally
+ * re-enabling IRQs. */
+size_t uart_read_available(char *dst, size_t max_length);
+
+/* Nonzero if at least one received byte is waiting in the ring buffer. */
+int uart_rx_pending(void);
+
 /* IRQ handler for MINEMU_IRQ_UART0. Called by minemu_irq_dispatch with IRQs
  * masked. Drains the hardware RX FIFO into the ring buffer; if the ring is
  * full it pauses the device RX interrupt (no bytes are dropped) until the
